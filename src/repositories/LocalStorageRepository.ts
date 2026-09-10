@@ -59,7 +59,7 @@ function readRaw(storage: Storage, key: string): unknown {
  */
 function parseEnvelope(
   raw: unknown
-): { schemaVersion: number; data: unknown } | null {
+): { schemaVersion: number; data?: unknown } | null {
   const result = StorageEnvelopeSchema.safeParse(raw)
   return result.success ? result.data : null
 }
