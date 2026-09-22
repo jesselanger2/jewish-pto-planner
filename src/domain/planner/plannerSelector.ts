@@ -259,6 +259,7 @@ export function selectCandidates(
   for (const demand of sortedDemand) {
     let remaining = demand.demandDays
     const deadline = rolloverDeadlineFor(demand.boundaryDate)
+    const demandBankId = demand.bankId  // which bank this demand is for
 
     // Only consider RP candidates before this boundary's deadline
     const eligible = rpCands.filter(
@@ -272,17 +273,17 @@ export function selectCandidates(
       if (remaining <= 0) break
       if (bookedDays.has(cand.startDate)) continue
 
-      if (!canBook(settings, currentBookings, 'vacation', cand.startDate, 1)) {
+      if (!canBook(settings, currentBookings, demandBankId, cand.startDate, 1)) {
         rejections.push({
           candidateId: cand.id,
-          reason: `Insufficient vacation balance for rollover protection on ${cand.startDate}`,
+          reason: `Insufficient ${demandBankId} balance for rollover protection on ${cand.startDate}`,
         })
         continue
       }
 
       const b = makeBooking(
         cand.startDate,
-        'vacation',
+        demandBankId,
         'rollover-protection',
         undefined,
         `Rollover protection before ${demand.boundaryDate}`

@@ -54,7 +54,11 @@ export const DayClassificationSchema = z.enum([
   'custom-closure',
 ])
 
-export const BankIdSchema = z.enum(['vacation', 'heritage', 'personal'])
+/**
+ * BankId: open string — validated further by EmployerPolicySchema
+ * (startingBalances keys must match bank ids).
+ */
+export const BankIdSchema = z.string().min(1)
 
 // ---------------------------------------------------------------------------
 // Employer policy schemas
@@ -74,19 +78,21 @@ export const PTOBankPolicySchema = z.object({
   accrualAmount: DayUnitsSchema.nonnegative().optional(),
   /** null means unlimited carry-over */
   carryoverCap: DayUnitsSchema.nonnegative().nullable().optional(),
+  /** Second forfeiture cliff (e.g. a mid-year use-by deadline on carried-over days). */
+  carryoverDeadline: MonthDaySchema.nullable().optional(),
   expiresAtYearEnd: z.boolean().optional(),
   allowNegative: z.boolean().optional(),
   minimumBalance: DayUnitsSchema.optional(),
+  unpaid: z.boolean().optional(),
+  isFloatingHoliday: z.boolean().optional(),
+  countsTowardVacationLossInvariant: z.boolean().optional(),
 })
 
 export const EmployerPolicySchema = z.object({
   policyYearStart: MonthDaySchema,
   banks: z.array(PTOBankPolicySchema).min(1),
-  startingBalances: z.object({
-    vacation: DayUnitsSchema,
-    heritage: DayUnitsSchema,
-    personal: DayUnitsSchema,
-  }),
+  /** Open record — must have an entry per bank id */
+  startingBalances: z.record(z.string(), DayUnitsSchema),
   weekendDays: z
     .array(z.number().int().min(0).max(6))
     .min(1)
@@ -235,6 +241,7 @@ export const ValidationIssueCodeSchema = z.enum([
   'vacation-loss-at-rollover',
   'booking-on-non-workday',
   'no-eligible-workdays-before-cap',
+  'advisory-bank-expiration',
 ])
 
 export const ValidationIssueSchema = z.object({
@@ -319,4 +326,4 @@ export const StorageEnvelopeSchema = z.object({
   data: z.unknown(),
 })
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2

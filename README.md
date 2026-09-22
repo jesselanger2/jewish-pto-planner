@@ -67,8 +67,32 @@ src/
 
 ---
 
-## Stack (planned — no source code exists yet)
+## Starter Templates & Custom Setup
 
+No named employer preset ships with this app. Employer policies vary, change over
+time, and shipping one company's specific numbers under its name risks being wrong,
+stale, or mistaken for an official source.
+
+Instead, onboarding offers four **unbranded, illustrative starter templates** and
+an equally prominent **"Start from scratch"** path:
+
+| Template | Key mechanisms demonstrated |
+|---|---|
+| **Simple Accrual with Rollover Cap** | Monthly accrual into one vacation bank; single year-end `carryoverCap` |
+| **Annual Grant, No Carryover** | Lump annual grant; `expiresAtYearEnd: true`; no accrual |
+| **Two-Stage Carryover with Use-By Deadline** | `carryoverCap` + separate `carryoverDeadline` (two distinct forfeiture cliffs) |
+| **Unpaid Observance Bank with Paid Substitution** | Vacation bank + `unpaid` religious-observance bank; `preferredBankOrder` lets user toggle unpaid-first vs. paid-first |
+| **Start from Scratch** | All banks blank/zero; same guided steps; user builds their own policy |
+
+Every number in a template is a clearly-labeled **placeholder the user is expected
+to edit** — not anyone's real policy. Template cards state this explicitly.
+
+> **No named employer appears anywhere in shipped code, copy, fixtures, or tests.**
+> Starter templates are generic, illustrative examples only.
+
+---
+
+## Stack
 | Concern | Choice |
 |---|---|
 | UI framework | React + TypeScript |
@@ -186,7 +210,11 @@ workdays remain before the cap deadline, or locked days prevent the needed use).
 
 **Repository state at Phase 0:** Empty (no source code, no `package.json`, no tooling).
 
-**Phase 1 status:** ✅ Complete — scaffold, models, schemas, utilities, repository, and 102 tests all passing.
+**Phase 1 status:** ✅ Complete — scaffold, models, schemas, utilities, repository, and tests all passing.
+
+**Citi policy patch (patch-citi-policy.md):** ✅ Superseded — branded preset removed, replaced with generic starter templates (patch-generic-templates.md).
+
+**Generic templates patch (patch-generic-templates.md):** ✅ Complete — four unbranded starter templates + fully-custom path; no named employer in any shipped file.
 
 **Assumptions entering Phase 1:**
 
@@ -220,4 +248,6 @@ first unit tests, initial Vite + Tailwind + Vitest configuration.
 - [x] Env variable reference + `.env.example` *(Phase 1)*
 - [x] Hebcal attribution *(this file)*
 - [x] Privacy statement + data-deletion instructions *(this file)*
+- [x] Four unbranded starter templates + fully-custom onboarding path *(patch-generic-templates)*
+- [x] Statement that no named employer preset ships *(this file, above)*
 - [ ] Sample seed settings/fixtures (Phase 2+)

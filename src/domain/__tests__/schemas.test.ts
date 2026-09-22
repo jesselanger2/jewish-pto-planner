@@ -164,13 +164,20 @@ describe('PTOBankPolicySchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects unknown bank id', () => {
+  it('rejects empty string bank id', () => {
     const result = PTOBankPolicySchema.safeParse({
-      id: 'sick',
+      id: '',
       label: 'Sick Leave',
       annualGrant: 10,
     })
     expect(result.success).toBe(false)
+  })
+
+  it('accepts well-known and custom bank ids', () => {
+    for (const id of ['vacation', 'heritage', 'religiousObservance', 'volunteer', 'sick', 'my-custom-bank']) {
+      const result = PTOBankPolicySchema.safeParse({ id, label: 'Test', annualGrant: 5 })
+      expect(result.success).toBe(true)
+    }
   })
 })
 

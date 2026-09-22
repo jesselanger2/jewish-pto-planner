@@ -74,8 +74,8 @@ export const ROLLOVER_CAP_SETTINGS: PlannerSettings = {
         minimumBalance: 0,
       },
       {
-        id: 'personal',
-        label: 'Personal Days',
+        id: 'volunteer',
+        label: 'Volunteer Day',
         annualGrant: 0,
         grantDate: { month: 1, day: 1 },
         carryoverCap: null,
@@ -86,7 +86,7 @@ export const ROLLOVER_CAP_SETTINGS: PlannerSettings = {
     startingBalances: {
       vacation: 0,  // Jan 1 2025 grant fires on day 1 → balance = 10
       heritage: 0,
-      personal: 0,
+      volunteer: 0,
     },
     weekendDays: [0, 6],
     useUSFederalHolidays: false,

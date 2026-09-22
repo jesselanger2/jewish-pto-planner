@@ -137,16 +137,24 @@ export function validatePlan(
   }
 
   // -------------------------------------------------------------------------
-  // Check 4 & 5: Zero vacation forfeiture at every rollover/expiration
+  // Check 4 & 5: Zero forfeiture at every rollover/expiration for invariant banks
   // -------------------------------------------------------------------------
   let totalForfeited: DayUnits = 0
 
+  const bankMap = new Map(policy.banks.map((b) => [b.id, b]))
+
   for (const ev of events) {
-    if (ev.bankId !== 'vacation') continue
     if (ev.type !== 'rollover' && ev.type !== 'expiration') continue
-    if (ev.delta < 0) {
-      // Negative delta on rollover/expiration = forfeiture
-      const lost = Math.abs(ev.delta)
+    if (ev.delta >= 0) continue  // positive or zero deltas are not forfeiture
+
+    const bank = bankMap.get(ev.bankId)
+    // Default: only 'vacation' counts toward the loss invariant
+    const countsTowardInvariant =
+      bank?.countsTowardVacationLossInvariant ?? ev.bankId === 'vacation'
+
+    const lost = Math.abs(ev.delta)
+
+    if (countsTowardInvariant) {
       totalForfeited += lost
       issues.push({
         code: 'vacation-loss-at-rollover',
@@ -154,7 +162,20 @@ export function validatePlan(
           `${lost} vacation day${lost === 1 ? '' : 's'} forfeited at rollover on ${ev.date}` +
           ` (balance was ${ev.openingBalance}, cap/expiration reduced to ${ev.resultingBalance})`,
         dates: [ev.date],
-        bankId: 'vacation',
+        bankId: ev.bankId,
+        projectedLossDays: lost,
+        rolloverDate: ev.date,
+      })
+    } else {
+      // Non-invariant bank forfeiture is expected (e.g. religiousObservance, heritage, volunteer)
+      // — advisory only, never makes the plan infeasible.
+      issues.push({
+        code: 'advisory-bank-expiration',
+        message:
+          `${lost} ${bank?.label ?? ev.bankId} day${lost === 1 ? '' : 's'} expired on ${ev.date}` +
+          ` — use it or lose it (not counted as vacation loss)`,
+        dates: [ev.date],
+        bankId: ev.bankId,
         projectedLossDays: lost,
         rolloverDate: ev.date,
       })
@@ -163,9 +184,12 @@ export function validatePlan(
 
   // -------------------------------------------------------------------------
   // Determine feasibility
+  // Advisory issues (advisory-bank-expiration) are surfaced in issues[] but
+  // never make a plan infeasible — only hard constraint failures do.
   // -------------------------------------------------------------------------
+  const hardIssueCount = issues.filter((i) => i.code !== 'advisory-bank-expiration').length
   const isFeasible =
-    issues.length === 0 &&
+    hardIssueCount === 0 &&
     requiredUncovered.length === 0 &&
     badDates.length === 0 &&
     belowMinDates.length === 0 &&

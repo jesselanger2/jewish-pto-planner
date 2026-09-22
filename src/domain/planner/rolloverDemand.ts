@@ -51,6 +51,10 @@ export interface RolloverDemandEntry {
   projectedBalance: DayUnits
   /** The cap that applies at this boundary (null = unlimited). */
   carryoverCap: DayUnits | null
+  /** Which bank this demand is for */
+  bankId: string
+  /** Whether this is the year-end cap cliff or the carryover-deadline cliff */
+  cliffType: 'year-end-cap' | 'carryover-deadline'
 }
 
 // ---------------------------------------------------------------------------
@@ -72,19 +76,6 @@ export function computeRolloverDemand(
   const { employerPolicy: policy, horizonStart, horizonYears } = settings
   const { policyYearStart, banks } = policy
 
-  // Find the vacation bank — the one subject to the zero-loss invariant
-  const vacationBank = banks.find((b) => b.id === 'vacation')
-  if (!vacationBank) return []
-
-  // No cap → unlimited carryover → no demand
-  if (vacationBank.carryoverCap === null || vacationBank.carryoverCap === undefined) {
-    return []
-  }
-  // expiresAtYearEnd → all balance expires; treat cap as 0 for demand calc
-  const effectiveCap: DayUnits = vacationBank.expiresAtYearEnd
-    ? 0
-    : (vacationBank.carryoverCap ?? 0)
-
   // Compute horizon end
   const { year, month, day } = parseIsoDate(horizonStart)
   const horizonEnd = toIsoDate(year + horizonYears, month, day)
@@ -99,35 +90,96 @@ export function computeRolloverDemand(
 
   const result: RolloverDemandEntry[] = []
 
-  for (const boundary of boundaries) {
-    // The demand is the amount that would be lost if we do nothing.
-    // The rollover event's openingBalance is the balance immediately before
-    // the cap is applied — this correctly includes same-day grants that fire
-    // before the rollover (e.g., when grantDate == policyYearStart).
-    //
-    // If there is no rollover event (balance already ≤ cap), demand = 0.
-    const rolloverEvent = events.find(
-      (ev) =>
-        ev.bankId === 'vacation' &&
-        ev.date === boundary &&
-        (ev.type === 'rollover' || ev.type === 'expiration')
-    )
+  // Only process banks that count toward the vacation-loss invariant.
+  // Default: true only for 'vacation'. All others opt-in explicitly.
+  const invariantBanks = banks.filter(
+    (b) => b.countsTowardVacationLossInvariant ?? b.id === 'vacation'
+  )
 
-    const projectedBalance = rolloverEvent
-      ? rolloverEvent.openingBalance
-      : getBalanceAsOf(events, 'vacation', boundary)
+  for (const bank of invariantBanks) {
+    // Skip banks with no cap and no carryover deadline (unlimited, no pressure)
+    const hasCap = bank.carryoverCap !== null && bank.carryoverCap !== undefined
+    const hasDeadline = !!bank.carryoverDeadline
+    if (!hasCap && !bank.expiresAtYearEnd && !hasDeadline) continue
 
-    const demandDays = Math.max(0, projectedBalance - effectiveCap)
+    const effectiveCap: DayUnits = bank.expiresAtYearEnd
+      ? 0
+      : (bank.carryoverCap ?? 0)
 
-    result.push({
-      boundaryDate: boundary,
-      demandDays,
-      projectedBalance,
-      carryoverCap: vacationBank.expiresAtYearEnd ? 0 : (vacationBank.carryoverCap ?? null),
-    })
+    for (const boundary of boundaries) {
+      // -----------------------------------------------------------------------
+      // Cliff 1: Year-end cap
+      // -----------------------------------------------------------------------
+      const rolloverEvent = events.find(
+        (ev) =>
+          ev.bankId === bank.id &&
+          ev.date === boundary &&
+          (ev.type === 'rollover' || ev.type === 'expiration')
+      )
+
+      const projectedBalance = rolloverEvent
+        ? rolloverEvent.openingBalance
+        : getBalanceAsOf(events, bank.id, boundary)
+
+      const demandDays = hasCap || bank.expiresAtYearEnd
+        ? Math.max(0, projectedBalance - effectiveCap)
+        : 0
+
+      result.push({
+        boundaryDate: boundary,
+        demandDays,
+        projectedBalance,
+        carryoverCap: bank.expiresAtYearEnd ? 0 : (bank.carryoverCap ?? null),
+        bankId: bank.id,
+        cliffType: 'year-end-cap',
+      })
+
+      // -----------------------------------------------------------------------
+      // Cliff 2: Carryover deadline (distinct from year-end cliff)
+      // Days that survive the cap must also be used by the carryoverDeadline.
+      // -----------------------------------------------------------------------
+      if (!hasDeadline || !bank.carryoverDeadline) continue
+
+      const { month: cdm, day: cdd } = bank.carryoverDeadline
+      const { year: boundaryYear } = parseIsoDate(boundary)
+      const deadlineDate = toIsoDate(boundaryYear, cdm, cdd)
+
+      // Only include if the deadline falls within the horizon and after the boundary
+      if (
+        compareDates(deadlineDate, horizonStart) < 0 ||
+        compareDates(deadlineDate, horizonEnd) > 0 ||
+        compareDates(deadlineDate, boundary) <= 0
+      ) continue
+
+      // The carried-over amount after the year-end cap event.
+      // We look for the expiration/rollover event at the boundary for this bank
+      // to know what balance remains after cliff 1.
+      const afterCapBalance = rolloverEvent
+        ? rolloverEvent.resultingBalance
+        : Math.min(projectedBalance, hasCap ? effectiveCap : projectedBalance)
+
+      // Now account for any bookings between boundary and deadline
+      const balanceAtDeadline = getBalanceAsOf(events, bank.id, deadlineDate)
+
+      // Demand at the deadline = whatever balance remains (since it all expires)
+      const deadlineDemand = Math.max(0, balanceAtDeadline)
+
+      // Only add a demand entry if there's genuinely a risk
+      if (afterCapBalance > 0) {
+        result.push({
+          boundaryDate: deadlineDate,
+          demandDays: deadlineDemand,
+          projectedBalance: balanceAtDeadline,
+          carryoverCap: 0,
+          bankId: bank.id,
+          cliffType: 'carryover-deadline',
+        })
+      }
+    }
   }
 
-  return result
+  // Return sorted chronologically
+  return result.sort((a, b) => compareDates(a.boundaryDate, b.boundaryDate))
 }
 
 // ---------------------------------------------------------------------------

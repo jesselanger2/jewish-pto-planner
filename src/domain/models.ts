@@ -33,7 +33,17 @@ export type DayClassification =
   | 'federal-holiday'
   | 'custom-closure'
 
-export type BankId = 'vacation' | 'heritage' | 'personal'
+/**
+ * Well-known bank IDs used by the starter templates and defaults.
+ * The type is open (string) to support custom employer banks.
+ */
+export type BankId =
+  | 'vacation'
+  | 'heritage'
+  | 'religiousObservance'
+  | 'volunteer'
+  | 'sick'
+  | string
 
 // ---------------------------------------------------------------------------
 // Employer policy
@@ -48,15 +58,35 @@ export interface PTOBankPolicy {
   accrualAmount?: DayUnits
   /** null = unlimited carry-over */
   carryoverCap?: DayUnits | null
+  /**
+   * Second forfeiture cliff, distinct from the year-end cap.
+   * Days that survived the cap must be used by this date or they're lost.
+   * E.g. a mid-year use-by deadline on the carried-over vacation balance.
+   */
+  carryoverDeadline?: { month: number; day: number } | null
   expiresAtYearEnd?: boolean
   allowNegative?: boolean
   minimumBalance?: DayUnits
+  /** True for banks (e.g. religiousObservance) that don't draw pay. */
+  unpaid?: boolean
+  /**
+   * True for a fixed paid day the user schedules themselves (e.g. Heritage Day).
+   * Grant is still tracked in the ledger; the "floating" is a UI/scheduling concern.
+   */
+  isFloatingHoliday?: boolean
+  /**
+   * When false, forfeiture of this bank at year-end is expected behavior —
+   * surface as advisory only, not an infeasible result.
+   * Defaults to true only for 'vacation'.
+   */
+  countsTowardVacationLossInvariant?: boolean
 }
 
 export interface EmployerPolicy {
   policyYearStart: { month: number; day: number }
   banks: PTOBankPolicy[]
-  startingBalances: Record<BankId, DayUnits>
+  /** Open record — must have an entry for every bank id in `banks`. */
+  startingBalances: Record<string, DayUnits>
   /** Day-of-week indices (0 = Sun, 6 = Sat). Default [0, 6]. */
   weekendDays: number[]
   useUSFederalHolidays: boolean
@@ -202,6 +232,8 @@ export type ValidationIssueCode =
   | 'vacation-loss-at-rollover'
   | 'booking-on-non-workday'
   | 'no-eligible-workdays-before-cap'
+  /** Non-invariant bank (heritage, religiousObservance, volunteer) expired at year end — advisory only, never infeasible. */
+  | 'advisory-bank-expiration'
 
 export interface ValidationIssue {
   code: ValidationIssueCode

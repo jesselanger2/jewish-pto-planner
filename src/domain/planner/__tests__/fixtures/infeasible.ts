@@ -72,8 +72,8 @@ export const INFEASIBLE_SETTINGS: PlannerSettings = {
         minimumBalance: 0,
       },
       {
-        id: 'personal',
-        label: 'Personal Days',
+        id: 'volunteer',
+        label: 'Volunteer Day',
         annualGrant: 0,
         grantDate: { month: 1, day: 1 },
         carryoverCap: null,
@@ -85,7 +85,7 @@ export const INFEASIBLE_SETTINGS: PlannerSettings = {
     startingBalances: {
       vacation: 20,
       heritage: 0,
-      personal: 0,
+      volunteer: 0,
     },
     weekendDays: [0, 6], // Sun + Sat
     useUSFederalHolidays: false,

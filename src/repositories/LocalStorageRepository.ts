@@ -68,14 +68,51 @@ function parseEnvelope(
  * Attempt to migrate settings data from an older schema version.
  * Returns null if migration is not possible.
  *
- * v1 is the initial version — no migrations yet.
+ * v1 → v2: Rename 'personal' bank → 'religiousObservance' with unpaid:true.
  */
 function migrateSettings(
-  _data: unknown,
+  data: unknown,
   fromVersion: number
 ): PlannerSettings | null {
-  // Future migrations: if (fromVersion === 1) { ... return v2 data }
-  void fromVersion
+  if (fromVersion === 1) {
+    // Attempt structural migration: rename 'personal' → 'religiousObservance'
+    try {
+      const raw = data as Record<string, unknown>
+      const policy = raw.employerPolicy as Record<string, unknown> | undefined
+      if (!policy) return null
+
+      // Migrate banks array
+      const banks = policy.banks as Array<Record<string, unknown>> | undefined
+      if (Array.isArray(banks)) {
+        policy.banks = banks.map((bank) => {
+          if (bank.id === 'personal') {
+            return {
+              ...bank,
+              id: 'religiousObservance',
+              label: bank.label ?? 'Religious Observance',
+              unpaid: true,
+              expiresAtYearEnd: true,
+              countsTowardVacationLossInvariant: false,
+            }
+          }
+          return bank
+        })
+      }
+
+      // Migrate startingBalances
+      const balances = policy.startingBalances as Record<string, unknown> | undefined
+      if (balances && 'personal' in balances) {
+        balances.religiousObservance = balances.personal
+        delete balances.personal
+      }
+
+      // Re-validate migrated data
+      const result = PlannerSettingsSchema.safeParse(raw)
+      return result.success ? result.data : null
+    } catch {
+      return null
+    }
+  }
   return null
 }
 

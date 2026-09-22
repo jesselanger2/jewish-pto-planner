@@ -58,9 +58,9 @@ const validSettings: PlannerSettings = {
     banks: [
       { id: 'vacation', label: 'Vacation', annualGrant: 15, carryoverCap: 5 },
       { id: 'heritage', label: 'Heritage', annualGrant: 5, carryoverCap: null },
-      { id: 'personal', label: 'Personal', annualGrant: 3, expiresAtYearEnd: true },
+      { id: 'religiousObservance', label: 'Religious Observance', annualGrant: 10, expiresAtYearEnd: true, unpaid: true },
     ],
-    startingBalances: { vacation: 10, heritage: 0, personal: 0 },
+    startingBalances: { vacation: 10, heritage: 0, religiousObservance: 0 },
     weekendDays: [0, 6],
     useUSFederalHolidays: true,
     companyHolidays: [],
@@ -162,7 +162,7 @@ describe('saveSettings → loadSettings round-trip', () => {
     await repo.saveSettings(validSettings)
     const raw = storage.getItem('jewish-pto-planner:settings')
     const envelope = JSON.parse(raw!) as { schemaVersion: number }
-    expect(envelope.schemaVersion).toBe(1)
+    expect(envelope.schemaVersion).toBe(2)
   })
 
   it('overwrites existing settings on second save', async () => {
@@ -216,7 +216,7 @@ describe('loadSavedPlans', () => {
     storage.setItem(
       'jewish-pto-planner:plans',
       JSON.stringify({
-        schemaVersion: 1,
+        schemaVersion: 2,
         data: [validPlanSnapshot, { id: 'bad', name: 123 }],
       })
     )

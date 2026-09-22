@@ -257,10 +257,10 @@ export function buildLedger(
     : horizonEnd
 
   // Working balances (mutated during processing — never in the events themselves)
-  const balances: Record<BankId, DayUnits> = {
-    vacation: startingBalances.vacation,
-    heritage: startingBalances.heritage,
-    personal: startingBalances.personal,
+  // Dynamically built from startingBalances so any number of banks is supported.
+  const balances: Record<string, DayUnits> = {}
+  for (const bank of banks) {
+    balances[bank.id] = startingBalances[bank.id] ?? 0
   }
 
   const events: LedgerEvent[] = []
@@ -324,6 +324,7 @@ export function buildLedger(
     | { kind: 'accrual'; date: IsoDate; bank: PTOBankPolicy }
     | { kind: 'booking'; booking: TimeOffBooking }
     | { kind: 'rollover'; date: IsoDate }
+    | { kind: 'carryover-deadline'; date: IsoDate; bank: PTOBankPolicy; boundaryDate: IsoDate }
 
   const pending: PendingEvent[] = []
 
@@ -356,14 +357,36 @@ export function buildLedger(
     }
   }
 
-  // 4. Rollovers — at each policy-year boundary
+  // 4a. Rollovers — at each policy-year boundary (year-end cap cliff)
   const boundaries = getPolicyYearBoundaries(horizonStart, effectiveEnd, policyYearStart)
   for (const boundary of boundaries) {
     pending.push({ kind: 'rollover', date: boundary })
   }
 
-  // Sort by date; within same date: grant < accrual < booking < rollover
-  const kindOrder = { grant: 0, accrual: 1, booking: 2, rollover: 3 }
+  // 4b. Carryover-deadline cliffs — for banks with a carryoverDeadline.
+  // These are DISTINCT from year-end rollovers. We post them on the
+  // carryoverDeadline date that falls in the same policy year as each boundary.
+  for (const bank of banks) {
+    if (!bank.carryoverDeadline) continue
+    const { month: cdm, day: cdd } = bank.carryoverDeadline
+    for (const boundary of boundaries) {
+      // The carryover deadline belongs to the policy year that STARTS at boundary.
+      // E.g. boundary = Jan 1 2026 → deadline = April 1 2026
+      const { year: boundaryYear } = parseIsoDate(boundary)
+      const deadlineDate = toIsoDate(boundaryYear, cdm, cdd)
+      if (
+        compareDates(deadlineDate, horizonStart) >= 0 &&
+        compareDates(deadlineDate, effectiveEnd) <= 0 &&
+        // Must fall strictly after the boundary (i.e. in the new policy year)
+        compareDates(deadlineDate, boundary) > 0
+      ) {
+        pending.push({ kind: 'carryover-deadline', date: deadlineDate, bank, boundaryDate: boundary })
+      }
+    }
+  }
+
+  // Sort by date; within same date: grant < accrual < booking < rollover < carryover-deadline
+  const kindOrder: Record<string, number> = { grant: 0, accrual: 1, booking: 2, rollover: 3, 'carryover-deadline': 4 }
   pending.sort((a, b) => {
     const da = a.kind === 'booking' ? a.booking.date : a.date
     const db = b.kind === 'booking' ? b.booking.date : b.date
@@ -463,7 +486,7 @@ export function buildLedger(
             `Year-end expiration: ${bank.label} balance forfeited`,
           )
         } else if (bank.carryoverCap !== undefined && bank.carryoverCap !== null) {
-          // Cap excess above carryoverCap
+          // Cap excess above carryoverCap (cliff 1: year-end)
           if (balance > bank.carryoverCap) {
             const excess = balance - bank.carryoverCap
             appendEvent(
@@ -472,7 +495,7 @@ export function buildLedger(
               'rollover',
               -excess,
               `Rollover cap: ${bank.label} capped at ${bank.carryoverCap} days ` +
-                `(${excess} day${excess === 1 ? '' : 's'} forfeited)`,
+                `(${excess} day${excess === 1 ? '' : 's'} forfeited at year end)`,
             )
           }
           // Otherwise no rollover event needed — balance stays as-is
@@ -480,12 +503,31 @@ export function buildLedger(
         // carryoverCap === null means unlimited — no rollover event
       }
     }
+
+    if (ev.kind === 'carryover-deadline') {
+      // Cliff 2: any balance that survived the year-end cap but wasn't used
+      // by the carryoverDeadline is forfeited here. We only forfeit what
+      // remains — the year-end cap event already reduced the balance to
+      // ≤ carryoverCap, so there is no double-counting.
+      const { bank, date } = ev
+      const balance = balances[bank.id]
+      if (balance > 0) {
+        appendEvent(
+          date,
+          bank.id,
+          'expiration',
+          -balance,
+          `Carryover deadline: ${bank.label} unused carried-over balance forfeited` +
+            ` (${balance} day${balance === 1 ? '' : 's'} lost after carryover window)`,
+        )
+      }
+    }
   }
 
-  const finalBalances: Record<BankId, DayUnits> = {
-    vacation: balances.vacation,
-    heritage: balances.heritage,
-    personal: balances.personal,
+  // Dynamically build finalBalances from all banks (not hard-coded 3 keys)
+  const finalBalances: Record<string, DayUnits> = {}
+  for (const bank of banks) {
+    finalBalances[bank.id] = balances[bank.id] ?? 0
   }
 
   return { events, finalBalances, violations }

@@ -76,8 +76,9 @@ describe('runPlanner — normal case (Diaspora, 3-year)', () => {
     expect(plan.validationIssues.filter((i) => i.code === 'required-holiday-uncovered')).toHaveLength(0)
   })
 
-  it('has no validation issues', () => {
-    expect(plan.validationIssues).toHaveLength(0)
+  it('has no hard validation issues (advisory notes for non-invariant bank expiry are expected)', () => {
+    const hardIssues = plan.validationIssues.filter((i) => i.code !== 'advisory-bank-expiration')
+    expect(hardIssues).toHaveLength(0)
   })
 
   it('has explanations for all bookings', () => {
@@ -329,7 +330,9 @@ describe('validatePlan — independent authority', () => {
 
     const result = validatePlan(NORMAL_CASE_SETTINGS, plan.bookings, holidays)
     expect(result.feasibility).toBe('valid')
-    expect(result.issues).toHaveLength(0)
+    // Advisory notes for non-invariant bank expiry (heritage) are expected and not infeasible
+    const hardIssues = result.issues.filter((i) => i.code !== 'advisory-bank-expiration')
+    expect(hardIssues).toHaveLength(0)
     expect(result.totalVacationForfeited).toBe(0)
   })
 })
