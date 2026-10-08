@@ -429,3 +429,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Prompts directory
+prompts/
+
+# Docs directory
+docs/
