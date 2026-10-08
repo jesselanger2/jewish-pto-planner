@@ -435,3 +435,8 @@ prompts/
 
 # Docs directory
 docs/
+
+# Local env files
+.env
+.env.*
+!.env.example
