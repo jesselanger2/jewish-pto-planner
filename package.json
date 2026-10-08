@@ -16,6 +16,7 @@
   "dependencies": {
     "@hebcal/core": "^5.9.0",
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^0.514.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -8,6 +8,7 @@
  * - Shows a full-page loading state during the initial repository hydration
  */
 import { useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { AppProvider, useAppState } from './lib/AppContext'
 import { NavBar } from './components/NavBar'
 import { LoadingSpinner } from './components/LoadingSpinner'
@@ -82,6 +83,7 @@ export default function App() {
   return (
     <AppProvider>
       <AppInner />
+      <Analytics />
     </AppProvider>
   )
 }
