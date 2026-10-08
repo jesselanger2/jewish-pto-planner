@@ -5,12 +5,14 @@
  * CSV export, and ICS export actions.
  */
 import { useState } from 'react'
-import { Save, Trash2, Download, Archive, Upload } from 'lucide-react'
+import { Save, Trash2, Download, Archive, Upload, User } from 'lucide-react'
 import { useAppState, useAppActions } from '../../lib/AppContext'
 import { EmptyState } from '../../components/EmptyState'
 import { AlertBanner } from '../../components/AlertBanner'
 import { Badge } from '../../components/Badge'
 import { exportToCSV, exportToICS, triggerDownload } from './exportUtils'
+import { AuthPanel } from '../auth/AuthPanel'
+import { useAuth } from '../../auth/AuthContext'
 import type { PlanSnapshot } from '../../domain/models'
 
 function formatDatetime(iso: string): string {
@@ -55,6 +57,7 @@ function DeleteConfirmModal({ plan, onConfirm, onCancel }: DeleteConfirmProps) {
 export function SavedPlansView() {
   const { savedPlans, plan } = useAppState()
   const { savePlan, deletePlan, loadSavedPlan } = useAppActions()
+  const { supabaseEnabled, user } = useAuth()
 
   const [saveName, setSaveName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -94,6 +97,23 @@ export function SavedPlansView() {
 
       {savedMsg && <AlertBanner variant="success" dismissible>Plan saved successfully.</AlertBanner>}
 
+      {/* Account section — only when Supabase is configured */}
+      {supabaseEnabled && (
+        <section aria-label="Account" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <p style={{ fontWeight: 700, color: 'var(--slate-300)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <User size={14} aria-hidden="true" /> Account
+          </p>
+          {user ? (
+            <div className="card" style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--slate-300)' }}>
+                Signed in as <strong style={{ color: 'var(--slate-200)' }}>{user.email}</strong> — plans sync across devices.
+              </span>
+            </div>
+          ) : (
+            <AuthPanel />
+          )}
+        </section>
+      )}
       {/* Save current plan */}
       {plan && (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

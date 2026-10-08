@@ -47,11 +47,15 @@ function AppInner() {
   // Main app
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      {/* Skip-to-content link: visible only on focus — WCAG 2.4.1 */}
+      <a href="#main-content" className="skip-to-main">
+        Skip to main content
+      </a>
+
       <NavBar activeView={activeView} onNavigate={setActiveView} />
 
       <main
-        id={`panel-${activeView}`}
-        role="tabpanel"
+        id="main-content"
         aria-labelledby={`tab-${activeView}`}
         style={{ flex: 1 }}
         tabIndex={-1}

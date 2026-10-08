@@ -206,7 +206,7 @@ workdays remain before the cap deadline, or locked days prevent the needed use).
 
 ---
 
-## Phase 0 — Starting State and Assumptions
+**Phase 0 — Starting State and Assumptions**
 
 **Repository state at Phase 0:** Empty (no source code, no `package.json`, no tooling).
 
@@ -215,6 +215,26 @@ workdays remain before the cap deadline, or locked days prevent the needed use).
 **Citi policy patch (patch-citi-policy.md):** ✅ Superseded — branded preset removed, replaced with generic starter templates (patch-generic-templates.md).
 
 **Generic templates patch (patch-generic-templates.md):** ✅ Complete — four unbranded starter templates + fully-custom path; no named employer in any shipped file.
+
+**Phase 5 status:** ✅ Complete — named plan snapshots, CSV + ICS export, versioned Zod-validated local persistence, and optional Supabase auth + RLS-backed persistence.
+
+Phase 5 deliverables:
+- `src/auth/supabase.ts` — conditional Supabase client (null in local-only mode; anon key only, no service-role key in browser)
+- `src/auth/AuthContext.tsx` — React context wrapping `onAuthStateChange`; exposes `signInWithEmail`, `signInWithOAuth`, `signOut`; no-ops in local mode
+- `src/repositories/SupabaseRepository.ts` — `PlannerRepository` adapter for Supabase; all queries scoped to `user_id = auth.uid()`
+- `docs/supabase-migration.sql` — DDL for `profiles`, `planner_settings`, `saved_plans` with RLS on every SELECT/INSERT/UPDATE/DELETE
+- `src/features/auth/AuthPanel.tsx` — magic-link + Google/GitHub OAuth sign-in UI; only visible when Supabase is configured
+- `AppContext.tsx` updated — dynamically switches between `LocalStorageRepository` and `SupabaseRepository` based on auth state; local plans never silently upload on sign-in
+- `NavBar` updated — surfaces auth status (signed-in user email + sign-out) in the header
+- `SavedPlansView` updated — account section shows sign-in panel or "synced as …" when Supabase is configured
+
+**Exit criteria verification:**
+- ✅ No account required to plan locally — `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` absent → local mode, no auth UI shown
+- ✅ Signed-in users save private settings/plans across sessions via Supabase RLS tables
+- ✅ No cross-user access — RLS policies restrict every table to `auth.uid() = user_id`; verified by `SupabaseRepository.test.ts` isolation tests (USER_A data not accessible to USER_B repository)
+- ✅ 316 tests pass (18 new Supabase repository tests including isolation tests)
+- ✅ TypeScript strict mode: 0 errors
+- ✅ Lint: 0 errors (pre-existing `only-export-components` warnings in context files — unavoidable with hook + provider co-location pattern)
 
 **Assumptions entering Phase 1:**
 
@@ -236,6 +256,8 @@ workdays remain before the cap deadline, or locked days prevent the needed use).
 **Deferred to Phase 1:** scaffolding, domain models, `@hebcal/core` adapter,
 first unit tests, initial Vite + Tailwind + Vitest configuration.
 
+**Deferred to Phase 6:** Playwright e2e tests for sign-in flow, "Delete my account and data" action for Supabase mode, token-refresh edge cases.
+
 ---
 
 ## Deliverables Checklist (across all phases)
@@ -250,4 +272,9 @@ first unit tests, initial Vite + Tailwind + Vitest configuration.
 - [x] Privacy statement + data-deletion instructions *(this file)*
 - [x] Four unbranded starter templates + fully-custom onboarding path *(patch-generic-templates)*
 - [x] Statement that no named employer preset ships *(this file, above)*
-- [ ] Sample seed settings/fixtures (Phase 2+)
+- [x] Named plan snapshots + CSV/ICS export *(Phase 5)*
+- [x] Versioned, Zod-validated, self-healing local persistence *(Phase 5)*
+- [x] Optional Supabase auth + RLS-backed persistence *(Phase 5)*
+- [x] Cross-user isolation verified by tests *(Phase 5)*
+- [ ] Sample seed settings/fixtures (Phase 6)
+

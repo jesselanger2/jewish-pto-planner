@@ -13,6 +13,7 @@ interface AlertBannerProps {
   children: ReactNode
   dismissible?: boolean
   title?: string
+  onDismiss?: () => void
 }
 
 const ICONS: Record<AlertVariant, ReactNode> = {
@@ -22,7 +23,7 @@ const ICONS: Record<AlertVariant, ReactNode> = {
   success: <CheckCircle size={16} />,
 }
 
-export function AlertBanner({ variant, children, dismissible, title }: AlertBannerProps) {
+export function AlertBanner({ variant, children, dismissible, title, onDismiss }: AlertBannerProps) {
   const [dismissed, setDismissed] = useState(false)
   if (dismissed) return null
 
@@ -43,7 +44,7 @@ export function AlertBanner({ variant, children, dismissible, title }: AlertBann
       {dismissible && (
         <button
           className="btn btn-ghost btn-sm"
-          onClick={() => setDismissed(true)}
+          onClick={() => { setDismissed(true); onDismiss?.() }}
           aria-label="Dismiss alert"
           style={{ flexShrink: 0, padding: '0.1rem', marginLeft: 'auto' }}
         >

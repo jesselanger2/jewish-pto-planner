@@ -4,6 +4,15 @@
  * Global application state via React context + useReducer.
  * The domain engine (runPlanner) is called here — never inside UI components.
  *
+ * Repository selection:
+ *   - When Supabase is configured AND a user is signed in → SupabaseRepository
+ *   - All other cases → LocalStorageRepository (local-only anonymous mode)
+ *   - When the user signs in, local plans are NOT silently uploaded; they
+ *     remain in localStorage and the Supabase store starts fresh.
+ *
+ * Provider composition: AppProvider wraps AuthProvider internally so callers
+ * only need <AppProvider> in main.tsx.
+ *
  * State:
  *   settings        — current PlannerSettings (null = not configured yet)
  *   plan            — most recent PlanSnapshot (null = not yet generated)
@@ -11,7 +20,7 @@
  *   isGenerating    — true while runPlanner is executing
  *   settingsLoaded  — true after the initial repository load is done
  *
- * Actions exposed via useAppDispatch():
+ * Actions exposed via useAppActions():
  *   applySettings(settings)
  *   generatePlan()
  *   lockDate(date, bankId, reason)
@@ -28,12 +37,18 @@ import {
   useReducer,
   useEffect,
   useRef,
+  useMemo,
   type ReactNode,
   startTransition,
 } from 'react'
+import { AuthProvider } from '../auth/AuthContext'
 import type { PlannerSettings, PlanSnapshot, BankId } from '../domain/models'
 import { runPlanner } from '../domain/planner/runPlanner'
 import { LocalStorageRepository } from '../repositories/LocalStorageRepository'
+import { SupabaseRepository } from '../repositories/SupabaseRepository'
+import type { PlannerRepository } from '../repositories/PlannerRepository'
+import { useAuth } from '../auth/AuthContext'
+import { supabase } from '../auth/supabase'
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -118,6 +133,7 @@ function reducer(state: AppState, action: Action): AppState {
 
 const StateContext = createContext<AppState | null>(null)
 const DispatchContext = createContext<React.Dispatch<Action> | null>(null)
+const RepoContext = createContext<PlannerRepository | null>(null)
 
 const initialState: AppState = {
   settings: null,
@@ -128,20 +144,38 @@ const initialState: AppState = {
 }
 
 // ---------------------------------------------------------------------------
-// Provider
+// Local repo singleton (shared across renders; re-created only if storage changes)
 // ---------------------------------------------------------------------------
 
-const repo = new LocalStorageRepository()
+const localRepo = new LocalStorageRepository()
 
-export function AppProvider({ children }: { children: ReactNode }) {
+// ---------------------------------------------------------------------------
+// Inner provider — requires AuthProvider to already be mounted
+// ---------------------------------------------------------------------------
+
+function AppProviderInner({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const { user } = useAuth()
   const isMounted = useRef(true)
 
-  // Load settings + saved plans from storage on mount.
-  // Reset isMounted at the top so React StrictMode's double-invoke (unmount →
-  // remount) doesn't leave the ref permanently false after the first cleanup.
+  // Pick the right repository based on whether the user is signed in
+  const repo: PlannerRepository = useMemo(() => {
+    if (user && supabase) {
+      return new SupabaseRepository(supabase, user.id)
+    }
+    return localRepo
+  }, [user])
+
+  // Reload settings + plans whenever the repository changes (auth state change)
   useEffect(() => {
     isMounted.current = true
+    // Reset settingsLoaded so a loading indicator is shown during the switch
+    dispatch({
+      type: 'SETTINGS_LOADED',
+      settings: null,
+      savedPlans: [],
+    })
+
     void (async () => {
       const [settings, savedPlans] = await Promise.all([
         repo.loadSettings(),
@@ -151,15 +185,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SETTINGS_LOADED', settings, savedPlans })
       }
     })()
-    return () => { isMounted.current = false }
-  }, [])
+
+    return () => {
+      isMounted.current = false
+    }
+  }, [repo])
 
   return (
     <StateContext.Provider value={state}>
       <DispatchContext.Provider value={dispatch}>
-        {children}
+        <RepoContext.Provider value={repo}>
+          {children}
+        </RepoContext.Provider>
       </DispatchContext.Provider>
     </StateContext.Provider>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Public provider — wraps AuthProvider internally so callers only need one tag
+// ---------------------------------------------------------------------------
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppProviderInner>{children}</AppProviderInner>
+    </AuthProvider>
   )
 }
 
@@ -179,6 +230,12 @@ function useDispatch(): React.Dispatch<Action> {
   return ctx
 }
 
+function useRepo(): PlannerRepository {
+  const ctx = useContext(RepoContext)
+  if (!ctx) throw new Error('useRepo must be used inside AppProvider')
+  return ctx
+}
+
 // ---------------------------------------------------------------------------
 // Domain action hooks — these are the public API for the UI
 // ---------------------------------------------------------------------------
@@ -186,6 +243,7 @@ function useDispatch(): React.Dispatch<Action> {
 export function useAppActions() {
   const dispatch = useDispatch()
   const state = useAppState()
+  const repo = useRepo()
 
   function applySettings(settings: PlannerSettings) {
     dispatch({ type: 'APPLY_SETTINGS', settings })

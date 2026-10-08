@@ -79,6 +79,27 @@ body {
   border-radius: 4px;
 }
 
+/* ---------- Skip to main content (keyboard accessibility) ---------- */
+.skip-to-main {
+  position: absolute;
+  top: -100%;
+  left: 0.75rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--indigo-500);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-to-main:focus {
+  top: 0;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar {
   width: 6px;
@@ -331,9 +352,13 @@ select option { background: var(--navy-900); }
   font-size: 0.75rem;
   font-weight: 600;
 }
-.bank-vacation  { background: rgba(99,102,241,0.18); color: var(--indigo-300); }
-.bank-heritage  { background: rgba(245,158,11,0.18); color: var(--amber-400); }
-.bank-personal  { background: rgba(16,185,129,0.15); color: var(--emerald-400); }
+.bank-vacation      { background: rgba(99,102,241,0.18); color: var(--indigo-300); }
+.bank-heritage      { background: rgba(245,158,11,0.18); color: var(--amber-400); }
+.bank-religious     { background: rgba(16,185,129,0.15); color: var(--emerald-400); }
+.bank-personal      { background: rgba(16,185,129,0.15); color: var(--emerald-400); }
+.bank-volunteer     { background: rgba(14,165,233,0.15); color: var(--sky-400); }
+.bank-sick          { background: rgba(139,92,246,0.15); color: var(--violet-400); }
+.bank-other         { background: rgba(148,163,184,0.12); color: var(--slate-300); }
 
 /* ---------- Alert banners ---------- */
 .alert {

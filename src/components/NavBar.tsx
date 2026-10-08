@@ -7,6 +7,7 @@
 import { LayoutDashboard, Calendar, Sparkles, Settings, List, Archive, Star } from 'lucide-react'
 import type { ViewId } from '../lib/router.ts'
 import { useAppState } from '../lib/AppContext'
+import { AuthPanel } from '../features/auth/AuthPanel'
 
 interface NavBarProps {
   activeView: ViewId
@@ -68,6 +69,7 @@ export function NavBar({ activeView, onNavigate }: NavBarProps) {
               {plan.feasibility === 'valid' ? '✓ Valid Plan' : '✗ Infeasible'}
             </span>
           )}
+          <AuthPanel />
         </div>
 
         {/* Navigation tabs */}

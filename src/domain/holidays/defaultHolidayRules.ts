@@ -103,32 +103,32 @@ export const DEFAULT_HOLIDAY_RULES: HolidayRule[] = [
   {
     holidayId: 'tisha-bav',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'tzom-gedaliah',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'asara-btevet',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'taanit-esther',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'taanit-bechorot',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'tzom-tammuz',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
 
   // -------------------------------------------------------------------------
@@ -137,32 +137,32 @@ export const DEFAULT_HOLIDAY_RULES: HolidayRule[] = [
   {
     holidayId: 'yom-hashoah',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'yom-hazikaron',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'yom-haatzmaut',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'yom-yerushalayim',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'yom-haaliyah',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
   {
     holidayId: 'sigd',
     observance: 'ignore',
-    preferredBankOrder: ['heritage', 'personal', 'vacation'],
+    preferredBankOrder: ['heritage', 'religiousObservance', 'vacation'],
   },
 ]
 

@@ -31,12 +31,6 @@ function daysLabel(n: number): string {
   return `${n} day${n === 1 ? '' : 's'}`
 }
 
-function getCurrentBalance(plan: PlanSnapshot, bankId: 'vacation' | 'heritage' | 'personal'): number {
-  const events = plan.ledger.filter((e) => e.bankId === bankId)
-  if (events.length === 0) return plan.settings.employerPolicy.startingBalances[bankId]
-  return events[events.length - 1].resultingBalance
-}
-
 function getNextRolloverDate(plan: PlanSnapshot): string | null {
   const rollover = plan.ledger.find((e) => e.type === 'rollover' && e.date > new Date().toISOString().slice(0, 10))
   return rollover?.date ?? null
@@ -59,12 +53,12 @@ function getUpcomingRequired(plan: PlanSnapshot, count = 5): Array<{ date: strin
 // ---------------------------------------------------------------------------
 
 function BalanceCard({
-  bankId, balance, grant,
-}: { bankId: 'vacation' | 'heritage' | 'personal'; balance: number; grant: number }) {
+  bankId, label, balance, grant,
+}: { bankId: string; label?: string; balance: number; grant: number }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <BankTag bankId={bankId} />
+        <BankTag bankId={bankId} label={label} />
         <span style={{ fontSize: '0.75rem', color: 'var(--slate-400)' }}>
           {daysLabel(grant)} / year
         </span>
@@ -124,12 +118,19 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: string) => void }
   }
 
   const { score, feasibility, validationIssues } = plan
-  const vacation = getCurrentBalance(plan, 'vacation')
-  const heritage = getCurrentBalance(plan, 'heritage')
-  const personal = getCurrentBalance(plan, 'personal')
-  const nextRollover = getNextRolloverDate(plan)
-  const upcomingRequired = getUpcomingRequired(plan)
-  const horizon = plan.settings.horizonYears
+  const currentPlan = plan // non-null after the guards above
+
+  // Derive balances for ALL banks in the policy, not just the hardcoded three
+  function getBalance(bankId: string): number {
+    const events = currentPlan.ledger.filter((e) => e.bankId === bankId)
+    if (events.length === 0) return currentPlan.settings.employerPolicy.startingBalances[bankId] ?? 0
+    return events[events.length - 1].resultingBalance
+  }
+
+  const allBanks = currentPlan.settings.employerPolicy.banks
+  const nextRollover = getNextRolloverDate(currentPlan)
+  const upcomingRequired = getUpcomingRequired(currentPlan)
+  const horizon = currentPlan.settings.horizonYears
 
   return (
     <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -220,9 +221,15 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: string) => void }
           PTO Balances (Projected End of Plan)
         </h2>
         <div className="grid-cols-stats">
-          <BalanceCard bankId="vacation" balance={vacation} grant={plan.settings.employerPolicy.banks.find(b => b.id === 'vacation')?.annualGrant ?? 0} />
-          <BalanceCard bankId="heritage" balance={heritage} grant={plan.settings.employerPolicy.banks.find(b => b.id === 'heritage')?.annualGrant ?? 0} />
-          <BalanceCard bankId="personal" balance={personal} grant={plan.settings.employerPolicy.banks.find(b => b.id === 'personal')?.annualGrant ?? 0} />
+          {allBanks.map((bank) => (
+            <BalanceCard
+              key={bank.id}
+              bankId={bank.id}
+              label={bank.label}
+              balance={getBalance(bank.id)}
+              grant={bank.annualGrant}
+            />
+          ))}
         </div>
       </section>
 
@@ -279,7 +286,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (view: string) => void }
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <Badge variant="required">Required</Badge>
-                    <BankTag bankId={item.bankId as 'vacation' | 'heritage' | 'personal'} />
+                    <BankTag bankId={item.bankId} />
                   </div>
                 </li>
               ))}
